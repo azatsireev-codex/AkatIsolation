@@ -12,3 +12,11 @@ commands:
   playtimetop:
     description: Displays the top players based on playtime
     usage: /playtimetop
+  akatreload:
+    description: Reloads AkatIsolation config
+    usage: /akatreload
+    permission: akatisolation.admin.reload
+permissions:
+  akatisolation.admin.reload:
+    description: Allows reloading AkatIsolation config
+    default: op

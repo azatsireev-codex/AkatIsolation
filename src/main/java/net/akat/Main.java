@@ -2,6 +2,7 @@ package net.akat;
 
 import net.akat.commands.PlaytimeCommand;
 import net.akat.commands.PlaytimeTopCommand;
+import net.akat.commands.ReloadConfigCommand;
 import net.akat.listeners.NightLockListener;
 import net.akat.listeners.RestrictionListener;
 import net.akat.placeholders.PlaytimePlaceholder;
@@ -44,8 +45,16 @@ public class Main extends JavaPlugin {
 
         PluginCommand playtimeTop = getCommand("playtimetop");
         if (playtimeTop != null) {
-            long cooldownSeconds = getConfig().getLong("top_cache.command_cooldown_seconds", 30L);
-            playtimeTop.setExecutor(new PlaytimeTopCommand(topService, playtimeService, cooldownSeconds));
+            playtimeTop.setExecutor(new PlaytimeTopCommand(
+                    topService,
+                    playtimeService,
+                    () -> getConfig().getLong("top_cache.command_cooldown_seconds", 30L)
+            ));
+        }
+
+        PluginCommand reload = getCommand("akatreload");
+        if (reload != null) {
+            reload.setExecutor(new ReloadConfigCommand(this, topService));
         }
     }
 

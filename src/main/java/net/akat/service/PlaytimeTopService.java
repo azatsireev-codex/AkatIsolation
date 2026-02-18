@@ -9,5 +9,7 @@ public interface PlaytimeTopService {
 
     void triggerRefresh();
 
+    void reloadFromConfig();
+
     void shutdown();
 }

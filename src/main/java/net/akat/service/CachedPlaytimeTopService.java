@@ -18,8 +18,10 @@ public class CachedPlaytimeTopService implements PlaytimeTopService {
     private final Plugin plugin;
     private final PlaytimeService playtimeService;
     private final ServerSchedulerAdapter scheduler;
-    private final int maxEntries;
-    private final int batchSize;
+
+    private volatile int maxEntries;
+    private volatile int batchSize;
+    private volatile long refreshIntervalTicks;
 
     private final AtomicReference<List<TopEntry>> topCache = new AtomicReference<>(List.of());
 
@@ -30,15 +32,12 @@ public class CachedPlaytimeTopService implements PlaytimeTopService {
         this.plugin = plugin;
         this.playtimeService = playtimeService;
         this.scheduler = new ServerSchedulerAdapter(plugin);
-        this.maxEntries = plugin.getConfig().getInt("top_cache.max_entries", 10);
-        this.batchSize = Math.max(20, plugin.getConfig().getInt("top_cache.processing_batch_size", 200));
+        loadConfigValues();
     }
 
     public void start() {
         triggerRefresh();
-        long intervalMinutes = Math.max(1L, plugin.getConfig().getLong("top_cache.refresh_interval_minutes", 10L));
-        long intervalTicks = intervalMinutes * 60L * 20L;
-        refreshTicker = scheduler.runAtFixedRate(this::triggerRefresh, intervalTicks, intervalTicks);
+        restartRefreshTicker();
     }
 
     @Override
@@ -54,13 +53,15 @@ public class CachedPlaytimeTopService implements PlaytimeTopService {
         }
 
         PriorityQueue<TopEntry> heap = new PriorityQueue<>(Comparator.comparingLong(TopEntry::playtimeSeconds));
+        int currentMaxEntries = maxEntries;
+        int currentBatchSize = batchSize;
 
-        batchTask = new BukkitTopBatchTask(scheduler, players, batchSize, (player) -> {
+        batchTask = new BukkitTopBatchTask(scheduler, players, currentBatchSize, (player) -> {
             String name = player.getName() != null ? player.getName() : player.getUniqueId().toString();
             long seconds = playtimeService.getPlaytimeSeconds(player);
             TopEntry candidate = new TopEntry(name, seconds);
 
-            if (heap.size() < maxEntries) {
+            if (heap.size() < currentMaxEntries) {
                 heap.offer(candidate);
                 return;
             }
@@ -77,6 +78,12 @@ public class CachedPlaytimeTopService implements PlaytimeTopService {
     }
 
     @Override
+    public synchronized void reloadFromConfig() {
+        loadConfigValues();
+        restartRefreshTicker();
+    }
+
+    @Override
     public List<TopEntry> getTopEntries() {
         return topCache.get();
     }
@@ -89,5 +96,19 @@ public class CachedPlaytimeTopService implements PlaytimeTopService {
         if (batchTask != null) {
             batchTask.cancel();
         }
+    }
+
+    private void loadConfigValues() {
+        this.maxEntries = Math.max(1, plugin.getConfig().getInt("top_cache.max_entries", 10));
+        this.batchSize = Math.max(20, plugin.getConfig().getInt("top_cache.processing_batch_size", 200));
+        long intervalMinutes = Math.max(1L, plugin.getConfig().getLong("top_cache.refresh_interval_minutes", 10L));
+        this.refreshIntervalTicks = intervalMinutes * 60L * 20L;
+    }
+
+    private void restartRefreshTicker() {
+        if (refreshTicker != null) {
+            refreshTicker.cancel();
+        }
+        refreshTicker = scheduler.runAtFixedRate(this::triggerRefresh, refreshIntervalTicks, refreshIntervalTicks);
     }
 }

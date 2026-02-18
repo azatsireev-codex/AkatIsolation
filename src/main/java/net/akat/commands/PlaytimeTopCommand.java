@@ -13,18 +13,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.LongSupplier;
 
 public class PlaytimeTopCommand implements CommandExecutor {
 
     private final PlaytimeTopService topService;
     private final BukkitPlaytimeService playtimeService;
-    private final long cooldownMillis;
+    private final LongSupplier cooldownSecondsSupplier;
     private final Map<UUID, Long> lastUsed = new ConcurrentHashMap<>();
 
-    public PlaytimeTopCommand(PlaytimeTopService topService, BukkitPlaytimeService playtimeService, long cooldownSeconds) {
+    public PlaytimeTopCommand(PlaytimeTopService topService,
+                              BukkitPlaytimeService playtimeService,
+                              LongSupplier cooldownSecondsSupplier) {
         this.topService = topService;
         this.playtimeService = playtimeService;
-        this.cooldownMillis = Math.max(0L, cooldownSeconds) * 1000L;
+        this.cooldownSecondsSupplier = cooldownSecondsSupplier;
     }
 
     @Override
@@ -35,6 +38,7 @@ public class PlaytimeTopCommand implements CommandExecutor {
         }
 
         long now = System.currentTimeMillis();
+        long cooldownMillis = Math.max(0L, cooldownSecondsSupplier.getAsLong()) * 1000L;
         Long last = lastUsed.get(player.getUniqueId());
         if (last != null && now - last < cooldownMillis) {
             long waitSeconds = (cooldownMillis - (now - last) + 999L) / 1000L;
@@ -52,7 +56,7 @@ public class PlaytimeTopCommand implements CommandExecutor {
         player.sendMessage(ChatColor.GOLD + "Топ игроков по времени на сервере:");
         int rank = 1;
         for (TopEntry entry : top) {
-            player.sendMessage(ChatColor.YELLOW + String.valueOf(rank) + ". " + entry.playerName() + " - "
+            player.sendMessage(ChatColor.YELLOW + rank + ". " + entry.playerName() + " - "
                     + playtimeService.formatHms(entry.playtimeSeconds()));
             rank++;
         }
