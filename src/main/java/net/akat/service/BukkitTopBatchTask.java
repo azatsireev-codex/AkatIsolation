@@ -1,15 +1,14 @@
 package net.akat.service;
 
+import net.akat.service.scheduler.CancellableTask;
+import net.akat.service.scheduler.ServerSchedulerAdapter;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.function.Consumer;
 
 public class BukkitTopBatchTask {
 
-    private final Plugin plugin;
+    private final ServerSchedulerAdapter scheduler;
     private final OfflinePlayer[] players;
     private final int batchSize;
     private final Consumer<OfflinePlayer> processor;
@@ -17,34 +16,33 @@ public class BukkitTopBatchTask {
 
     private int cursor = 0;
 
-    public BukkitTopBatchTask(Plugin plugin,
+    public BukkitTopBatchTask(ServerSchedulerAdapter scheduler,
                               OfflinePlayer[] players,
                               int batchSize,
                               Consumer<OfflinePlayer> processor,
                               Runnable onFinish) {
-        this.plugin = plugin;
+        this.scheduler = scheduler;
         this.players = players;
         this.batchSize = batchSize;
         this.processor = processor;
         this.onFinish = onFinish;
     }
 
-    public BukkitTask start() {
-        return new BukkitRunnable() {
-            @Override
-            public void run() {
-                int processed = 0;
-                while (cursor < players.length && processed < batchSize) {
-                    processor.accept(players[cursor]);
-                    cursor++;
-                    processed++;
-                }
-
-                if (cursor >= players.length) {
-                    onFinish.run();
-                    cancel();
-                }
+    public CancellableTask start() {
+        final CancellableTask[] selfRef = new CancellableTask[1];
+        selfRef[0] = scheduler.runAtFixedRate(() -> {
+            int processed = 0;
+            while (cursor < players.length && processed < batchSize) {
+                processor.accept(players[cursor]);
+                cursor++;
+                processed++;
             }
-        }.runTaskTimer(plugin, 1L, 1L);
+
+            if (cursor >= players.length) {
+                onFinish.run();
+                selfRef[0].cancel();
+            }
+        }, 1L, 1L);
+        return selfRef[0];
     }
 }
