@@ -1,0 +1,16 @@
+required_playtime_minutes: 3000
+
+night_lock:
+  enabled: true
+  timezone: Europe/Moscow
+  start_hour: 4
+  end_hour: 9
+
+top_cache:
+  refresh_interval_minutes: 10
+  processing_batch_size: 200
+  command_cooldown_seconds: 30
+  max_entries: 10
+
+messages:
+  restriction_prefix: "#f02c4e⚠ #f35382"
