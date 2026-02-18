@@ -1,0 +1,14 @@
+name: AkatIsolation
+main: net.akat.Main
+version: 1.0
+api-version: '1.21'
+folia-supported: true
+author: 2FORWORD2
+depend: [PlaceholderAPI]
+commands:
+  playtime:
+    description: Displays your playtime and current restrictions
+    usage: /playtime
+  playtimetop:
+    description: Displays the top players based on playtime
+    usage: /playtimetop
